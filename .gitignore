@@ -5,7 +5,6 @@ node_modules/
 frontend/dist/
 
 # projeto Android gerado pelo Capacitor (recriado por build.sh/CI)
-frontend/android/
 
 # dados locais do Atlas
 data/conversations/*
