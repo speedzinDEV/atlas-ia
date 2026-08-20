@@ -1,0 +1,110 @@
+name: Build Atlas Android APK
+
+# Compila o APK na nuvem. Dispara em push na main que mexa no frontend,
+# ou manualmente pela aba "Actions" do GitHub (workflow_dispatch).
+# Gerado/mantido automaticamente por build.sh (bash build.sh apk).
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/android-build.yml'
+  workflow_dispatch: {}
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Configurar JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Instalar dependências do frontend
+        working-directory: frontend
+        run: npm install --no-fund --no-audit
+
+      - name: Build web (Vite)
+        working-directory: frontend
+        run: npm run build
+
+      - name: Criar/atualizar projeto Android (Capacitor)
+        working-directory: frontend
+        run: |
+          if [ ! -d "android" ]; then
+            npx cap add android
+            mkdir -p android/app/src/main/res/xml
+            cp android-config-template/xml/network_security_config.xml \
+               android/app/src/main/res/xml/network_security_config.xml
+            npx capacitor-assets generate --android
+          fi
+          npx cap sync android
+
+      - name: Garantir cleartext + networkSecurityConfig no manifest
+        working-directory: frontend
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          if ! grep -q "networkSecurityConfig" "$MANIFEST"; then
+            sed -i 's#<application#<application android:usesCleartextTraffic="true" android:networkSecurityConfig="@xml/network_security_config"#' "$MANIFEST"
+          fi
+
+      # Se os 4 secrets de assinatura estiverem configurados no repositório
+      # (Settings -> Secrets and variables -> Actions), gera key.properties
+      # e compila release assinado. Caso contrário, compila debug normal.
+      - name: Preparar assinatura (se secrets existirem)
+        working-directory: frontend/android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > app/atlas-release.jks
+            cat > key.properties << EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=atlas-release.jks
+          EOF
+            echo "SIGNED=1" >> "$GITHUB_ENV"
+          else
+            echo "SIGNED=0" >> "$GITHUB_ENV"
+          fi
+
+      - name: Compilar APK debug
+        if: env.SIGNED == '0'
+        working-directory: frontend/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Compilar APK release (assinado)
+        if: env.SIGNED == '1'
+        working-directory: frontend/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease
+
+      - name: Publicar APK debug como artefato
+        if: env.SIGNED == '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-debug-apk
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publicar APK release como artefato
+        if: env.SIGNED == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: atlas-release-apk
+          path: frontend/android/app/build/outputs/apk/release/app-release.apk

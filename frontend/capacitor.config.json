@@ -1,0 +1,13 @@
+{
+  "appId": "com.mplugins.atlas",
+  "appName": "Atlas",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "http",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

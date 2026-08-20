@@ -1,0 +1,29 @@
+# dependências
+node_modules/
+
+# build web
+frontend/dist/
+
+# projeto Android gerado pelo Capacitor (recriado por build.sh/CI)
+frontend/android/
+
+# dados locais do Atlas
+data/conversations/*
+data/settings/*
+data/memory/*
+!data/conversations/.gitkeep
+!data/settings/.gitkeep
+!data/memory/.gitkeep
+
+# modelos .gguf baixados localmente (pesados, não versionar)
+models/*.gguf
+
+# logs / SO
+*.log
+.DS_Store
+*.jks
+*.keystore
+android/key.properties
+.env
+.env.*
+atlas.config.local

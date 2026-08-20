@@ -1,0 +1,21 @@
+{
+  "model": "models/atlas.gguf",
+  "llama_bin": "llama-cli",
+  "llama_server_bin": "llama-server",
+  "context_size": 2048,
+  "threads": 4,
+  "temperature": 0.7,
+  "max_tokens": 256,
+  "gpu_layers": 0,
+  "memory": true,
+  "memory_max_facts": 200,
+  "memory_max_history": 100,
+  "voice": false,
+  "web": false,
+  "confirm_destructive": true,
+  "low_memory": false,
+  "personality": {
+    "name": "Atlas",
+    "tone": "objetivo, educado, direto"
+  }
+}
